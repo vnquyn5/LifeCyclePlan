@@ -20,3 +20,12 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+app:
+  security:
+    auth-rate-limit:
+      max-tracked-buckets: 10000
+      login-max-requests: 5
+      login-window: 60s
+      register-max-requests: 3
+      register-window: 10m

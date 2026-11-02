@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -100,5 +102,16 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    /**
+     * AUTH-02 will provide token-based authentication. Until then, do not let
+     * Spring Boot create and log a generated in-memory user password.
+     */
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UsernameNotFoundException("Username/password authentication is not configured");
+        };
     }
 }

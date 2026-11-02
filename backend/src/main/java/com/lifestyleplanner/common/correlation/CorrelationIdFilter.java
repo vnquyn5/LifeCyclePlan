@@ -15,6 +15,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component 
 public class CorrelationIdFilter extends OncePerRequestFilter {
+    private static final int MAX_CORRELATION_ID_LENGTH = 64;
+
 
     @Override 
     protected void doFilterInternal(
@@ -23,7 +25,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         FilterChain filterChain
     ) throws ServletException, IOException {
         String correlationId = request.getHeader(CorrelationIdConstants.HEADER_NAME);
-        if (correlationId == null || correlationId.isBlank()){
+        if (!isSafeCorrelationId(correlationId)) {
             correlationId = UUID.randomUUID().toString();
         }
         try {
@@ -33,6 +35,12 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         } finally {
             MDC.remove(CorrelationIdConstants.MDC_KEY);
         }
+    }
+
+    private boolean isSafeCorrelationId(String correlationId) {
+        return correlationId != null
+                && correlationId.length() <= MAX_CORRELATION_ID_LENGTH
+                && correlationId.matches("[A-Za-z0-9._-]+");
     }
     
 }

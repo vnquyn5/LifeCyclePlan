@@ -61,11 +61,11 @@ public class AuthServiceImpl implements AuthService {
             String normalizedEmail = Email.normalize(request.email());
             User user = userRepository.findByEmailNormalized(normalizedEmail)
             .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_CREDENTIALS));
-            authDomainService.validateUserCanLogin(user);
             boolean passwordValid = passwordEncoder.matches(request.password(), user.getPasswordHash());
             if (!passwordValid) {
                 throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
             }
+            authDomainService.validateUserCanLogin(user);
             user.updateLastLogin();
             
             AuthUserResponse userResponse = new AuthUserResponse(user.getId(), user.getEmail(), user.getOnboardingStatus());

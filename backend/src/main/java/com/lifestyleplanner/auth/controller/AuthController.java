@@ -34,6 +34,7 @@ public class AuthController {
         @ApiResponse (responseCode = "201", description = "Tài khoản được tạo thành công"),
         @ApiResponse (responseCode = "400", description = "Yêu cầu không hợp lệ"),
         @ApiResponse (responseCode = "409", description = "Email đã tồn tại"),
+        @ApiResponse (responseCode = "429", description = "Có quá nhiều yêu cầu đăng ký"),
         @ApiResponse (responseCode = "500", description = "Lỗi hệ thống")
     })
 
