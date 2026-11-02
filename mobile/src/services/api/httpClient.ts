@@ -71,6 +71,7 @@ export function safeApiMessage(body: ApiErrorBody, status: number): string {
     AUTH_INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa chính xác.",
     AUTH_PASSWORD_CONFIRM_MISMATCH: "Mật khẩu xác nhận không khớp.",
     AUTH_ACCOUNT_DISABLED: "Tài khoản hiện chưa thể đăng nhập.",
+    AUTH_RATE_LIMITED: "Bạn thao tác quá nhanh. Vui lòng chờ rồi thử lại.",
     EMAIL_ALREADY_EXISTS: "Email này đã được đăng ký. Hãy đăng nhập hoặc dùng email khác.",
     VALIDATION_ERROR: "Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại."
   };
