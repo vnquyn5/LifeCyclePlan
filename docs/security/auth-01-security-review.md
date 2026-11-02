@@ -2,15 +2,15 @@
 
 **Review date:** 2026-11-02  
 **WBS:** 1.1.10  
-**Status:** PARTIAL — development retention policy is approved and recorded; authentication log retention automation and deletion verification remain pending. The status migration is tested in isolation but has not been applied to the existing local database. Production policy remains pending review.
+**Status:** PARTIAL — the approved development log-retention control is configured and its expired-archive deletion is tested. The status migration is tested in isolation but has not been applied to the existing local database. Production policy remains pending review.
 
 ## Executive summary
 
 AUTH-01 validates registration and login input, normalizes email, stores BCrypt hashes at cost 12, uses generic credentials errors for unknown email and wrong password, and does not return password hashes. Auth requests are not logged by application code. Error responses omit exception details. Correlation IDs are bounded and replaced with server-generated UUIDs when invalid. Spring Boot's generated in-memory password is disabled.
 
-The backend now applies bounded, in-memory fixed-window rate limits to login and registration. An HTTP 429 response includes `AUTH_RATE_LIMITED`, a generic message, `Retry-After`, and the request correlation ID. This is suitable for the current single-process local/MVP deployment; it is not a distributed production limiter.
+The backend now applies bounded, in-memory fixed-window rate limits to login and registration. An HTTP 429 response includes `AUTH_RATE_LIMITED`, a generic message, `Retry-After`, and the request correlation ID. This is suitable for the current single-process local/MVP deployment; it is not a distributed production limiter. In the `local` profile, Logback writes only to daily, size-capped rolling files, includes the correlation ID, and removes archives older than 90 days on startup/rollover. Docker Compose mounts that directory in a named development volume; local logs are not duplicated into Docker's separately retained console log stream.
 
-The Project Owner approved a development retention decision on 2026-11-02. WBS 1.1.10 remains **PARTIAL** because authentication log retention automation and deletion verification are pending. Account deletion/anonymization is deferred to privacy/account work; production legal/privacy review is pending; token/session retention depends on AUTH-02. The decision does not certify legal compliance or production readiness. No migration was run against the existing local database during this review.
+The Project Owner approved a development retention decision on 2026-11-02. Development log rotation and expired-archive deletion verification are now implemented. WBS 1.1.10 remains **PARTIAL** because V2 has not been applied to the existing local database. Account deletion/anonymization is deferred to privacy/account work; production legal/privacy review is pending; token/session retention depends on AUTH-02. The decision does not certify legal compliance or production readiness. No migration was run against the existing local database during this review.
 
 ## Security findings
 
@@ -21,7 +21,7 @@ The Project Owner approved a development retention decision on 2026-11-02. WBS 1
 | SEC-AUTH-03 | Medium | A disabled account with a wrong password previously returned a distinct 403, revealing account state. | Password verification now precedes account-state checks. Wrong credentials get the generic 401; correct credentials for a disabled account remain 403. |
 | SEC-AUTH-04 | Low | Client supplied correlation IDs could be unbounded or contain unsafe characters. | Existing change limits IDs to 64 safe ASCII characters and generates a UUID for invalid values. |
 | SEC-AUTH-05 | Low | Spring Boot generated and logged an implicit in-memory password despite there being no AUTH-02 session implementation. | Existing change supplies an empty `UserDetailsService`; no default account is created. |
-| SEC-AUTH-06 | Medium | Development retention policy and enforced log retention are separate controls. | Development policy is approved in the decision record; 90-day authentication-log retention and deletion verification are pending. Account deletion/anonymization is deferred; production review is pending. |
+| SEC-AUTH-06 | Medium | Development retention policy and enforced log retention are separate controls. | Development policy is approved and 90-day rolling log retention is configured; a test verifies deletion of an archive 100 days old. Account deletion/anonymization is deferred; production review is pending. |
 
 ## Rate-limiting policy and implementation
 
@@ -50,7 +50,7 @@ V2 remains unapplied to the existing local database. Deploying it requires the n
 
 - Passwords are encoded with BCrypt cost 12. Login responses contain user information and a null token object until AUTH-02; password/hash fields are absent from response DTOs.
 - Root `.env` and `backend/application-local-secrets.properties` are ignored by Git. Tracked environment examples contain variable names/placeholders; no raw credential was found in tracked source during this review. Never place JWT secrets in `EXPO_PUBLIC_*` variables.
-- No application logger or request-body logging filter logs auth request bodies. The global exception handler returns a generic 500 message without stack traces or database details. Security handlers return generic 401/403 bodies.
+- Application code does not log auth request bodies. The Spring MVC request/response body processor logger is pinned to INFO so a global DEBUG setting does not emit parsed request DTOs. The full backend test output was checked and contained no synthetic password value. The global exception handler returns a generic 500 message without stack traces or database details. Security handlers return generic 401/403 bodies.
 - Correlation IDs are the only request-tracing value intentionally propagated. Invalid client IDs are replaced. Rate-limit code does not log source addresses or identifiers.
 - The current account model stores UUID, email, normalized email, password hash, status, onboarding status, created/updated/last-login timestamps, and soft-delete timestamp. `email` and `email_normalized` currently hold the same normalized value, so they are duplicate PII fields; schema consolidation is not included in this task.
 - Rate-limit source addresses exist only in bounded process memory for their configured windows. They are not persisted.
@@ -58,7 +58,7 @@ V2 remains unapplied to the existing local database. Deploying it requires the n
 
 ## Data inventory and retention decision
 
-The development decision is recorded in [AUTH-01 Retention Decision Record](auth-01-retention-decision.md). It approves keeping account email, password hash, and status while the account is active unless deletion is requested or another requirement applies. It prohibits logging plaintext passwords, confirmation passwords, authentication tokens, and secrets. Authentication security logs have a maximum 90-day development target, with correlation IDs retained no longer than their containing logs. These controls are not all implemented: log retention automation and deletion verification are pending.
+The development decision is recorded in [AUTH-01 Retention Decision Record](auth-01-retention-decision.md). It approves keeping account email, password hash, and status while the account is active unless deletion is requested or another requirement applies. It prohibits logging plaintext passwords, confirmation passwords, authentication tokens, and secrets. Authentication security logs have a maximum 90-day development target, with correlation IDs retained no longer than their containing logs. Local-profile log rotation, startup cleanup, and expired-archive deletion verification are implemented. Production retention remains pending review.
 
 | Data | Purpose/location | Classification | Proposed lifecycle | Owner/dependency |
 |---|---|---|---|---|
@@ -68,9 +68,9 @@ The development decision is recorded in [AUTH-01 Retention Decision Record](auth
 | Status, onboarding status, timestamps | Account lifecycle and auth checks in PostgreSQL | Account metadata | Keep while needed for account operation; delete/anonymize with account under the approved deletion schedule. | Product/privacy owner; AUTH-06 |
 | `last_login_at` | Security/account activity in PostgreSQL | Personal activity metadata | No duration was set by this decision; resolve in the applicable privacy/account policy. | Privacy/account work |
 | Rate-limit peer address bucket | Abuse protection in process memory | Network identifier/personal data | Expire with its 60-second or 10-minute window; cleanup runs periodically; process restart clears state. | Backend owner; implemented in this task |
-| Authentication security logs and correlation IDs | Security monitoring and request troubleshooting | Request metadata; logs may include other application messages | Approved development target: at most 90 days; correlation ID follows the containing log's lifetime. Automation and deletion verification are pending. Production period is pending legal/privacy review. | Project Owner approved policy; operations implementation pending |
+| Authentication security logs and correlation IDs | Security monitoring and request troubleshooting | Request metadata; logs may include other application messages | Approved development target: at most 90 days; correlation ID follows the containing log's lifetime. Daily/size-based archives, 90-day history, and startup cleanup are configured; expired-archive deletion is covered by `DevelopmentLogRetentionTest`. Production period is pending legal/privacy review. | Project Owner approved policy; development implementation complete |
 
-No account deletion, data export, or log-retention mechanism was added. Docker/application currently use console logging; the repository does not configure or verify 90-day log deletion. Implement and verify it before marking the control implemented. Account deletion/anonymization and lawful retention exceptions belong to later privacy/account-lifecycle work.
+No account deletion or data export mechanism was added. The 90-day development log-retention mechanism is implemented for the `local` profile; Docker Compose persists its log directory in a dedicated volume. Logback prunes expired archives on startup and during rollover, so files older than 90 days are cleaned when the service next starts after downtime. `DevelopmentLogRetentionTest` verifies deletion of a synthetic archive dated 100 days earlier. Account deletion/anonymization and lawful retention exceptions belong to later privacy/account-lifecycle work.
 
 ## Dependencies and residual risks
 
@@ -78,4 +78,4 @@ No account deletion, data export, or log-retention mechanism was added. Docker/a
 - **AUTH-06/privacy work:** Account deletion, data export, and approved retention enforcement remain future work.
 - **Rate limiter:** Appropriate for one backend process only; not shared across replicas or restarts.
 - **Database migration:** V2 is tested but must still be applied to each intended database through a controlled Flyway deployment.
-- **Retention:** Development policy is approved; log retention automation/deletion verification is pending. Production legal/privacy review is pending.
+- **Retention:** Development policy and 90-day log retention automation/deletion verification are implemented. Production legal/privacy review is pending.

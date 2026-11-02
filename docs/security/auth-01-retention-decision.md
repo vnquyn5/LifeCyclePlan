@@ -19,7 +19,7 @@
 
 ## Outstanding controls
 
-- Authentication log retention automation: **PENDING**.
+- Authentication log retention automation: **IMPLEMENTED for development** with 90-day rolling archives, startup cleanup, and an automated test that verifies deletion of an archive older than 90 days. Production retention remains pending review.
 - Account deletion/anonymization workflow: **DEFERRED**.
 - Production legal/privacy review: **PENDING**.
 - AUTH-02 token/session lifecycle: **BLOCKED BY DEPENDENCY**.

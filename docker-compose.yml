@@ -36,6 +36,7 @@ services:
       context: ./backend
     environment:
       SPRING_PROFILES_ACTIVE: local
+      LOG_PATH: /app/logs
 
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
@@ -54,6 +55,9 @@ services:
     ports:
       - "8080:8080"
 
+    volumes:
+      - lifecycle-backend-logs:/app/logs
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,5 +65,6 @@ services:
         condition: service_started
 
 volumes:
+  lifecycle-backend-logs:
   lifecycle-postgres-data:
   lifecycle-minio-data:
