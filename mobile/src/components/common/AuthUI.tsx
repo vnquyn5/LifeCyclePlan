@@ -12,6 +12,7 @@ import {
   useColorScheme,
   View
 } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/theme/colors";
 
@@ -97,7 +98,7 @@ export function AuthHeader({ title, subtitle }: { title: string; subtitle: strin
       >
         <Text style={[styles.brandMarkText, { color: theme.brandText }]}>L</Text>
       </View>
-      <Text style={[styles.brandName, { color: theme.secondary }]}>LifeCyclePlan</Text>
+      <Text style={[styles.brandName, { color: theme.secondary }]}>Life Cycle Plan</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: theme.text }]}>
         {title}
       </Text>
@@ -110,7 +111,7 @@ interface AuthFieldProps extends Omit<TextInputProps, "style" | "secureTextEntry
   label: string;
   error?: string;
   secureTextEntry?: boolean;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
   onToggleSecure?: () => void;
   isPasswordVisible?: boolean;
 }

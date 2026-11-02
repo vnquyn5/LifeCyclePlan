@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Text, View } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useRouter } from "expo-router";
 import {
   AuthField,
@@ -24,8 +25,8 @@ export default function RegisterScreen() {
   const router = useRouter();
   const mutation = useRegisterMutation();
   const retryDelay = useAuthRetryDelay();
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
+  const confirmPasswordRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

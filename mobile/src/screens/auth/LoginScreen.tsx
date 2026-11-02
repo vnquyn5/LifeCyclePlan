@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
-import { TextInput, View } from "react-native";
+import { View } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   AuthField,
@@ -23,7 +24,7 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{ registered?: string }>();
   const mutation = useLoginMutation();
   const retryDelay = useAuthRetryDelay();
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
