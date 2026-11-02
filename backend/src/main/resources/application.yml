@@ -1,6 +1,8 @@
 spring:
   application:
     name: lifestyle-planner-backend
+  profiles:
+    default: local
 
   datasource:
     url: ${DB_URL}

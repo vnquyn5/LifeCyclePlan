@@ -1,4 +1,3 @@
 spring:
   config:
-    activate:
-      on-profile: local
+    import: optional:file:./application-local-secrets.properties

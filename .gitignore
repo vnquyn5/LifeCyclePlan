@@ -36,3 +36,5 @@ coverage/
 # Local storage
 uploads/
 data/
+# Local Backend secrets
+/backend/application-local-secrets.properties
