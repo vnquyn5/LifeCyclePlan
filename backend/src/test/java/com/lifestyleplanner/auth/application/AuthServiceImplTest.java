@@ -21,6 +21,7 @@ import com.lifestyleplanner.auth.exception.AuthErrorCode;
 import com.lifestyleplanner.auth.exception.AuthException;
 import com.lifestyleplanner.user.domain.entity.User;
 import com.lifestyleplanner.user.repository.UserRepository;
+import com.lifestyleplanner.auth.session.application.AuthSessionService;
 
 class AuthServiceImplTest {
 
@@ -35,7 +36,7 @@ class AuthServiceImplTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        authService = new AuthServiceImpl(userRepository, passwordEncoder, new AuthDomainService());
+        authService = new AuthServiceImpl(userRepository, passwordEncoder, new AuthDomainService(), mock(AuthSessionService.class));
     }
 
     @Test

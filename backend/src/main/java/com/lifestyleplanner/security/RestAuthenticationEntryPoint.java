@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 
-import org.jboss.logging.MDC;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;

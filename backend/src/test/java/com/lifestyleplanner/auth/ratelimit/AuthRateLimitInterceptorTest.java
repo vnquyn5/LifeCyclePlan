@@ -50,7 +50,7 @@ class AuthRateLimitInterceptorTest {
     void setUp() {
         clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
         authService = mock(AuthService.class);
-        limiter = new AuthRateLimiter(properties(1, 60, 1, 600), clock);
+        limiter = new AuthRateLimiter(properties(1, 60, 1, 600, 30, 60), clock);
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         AuthRateLimitInterceptor interceptor = new AuthRateLimitInterceptor(limiter, objectMapper, clock);
 
@@ -124,13 +124,16 @@ class AuthRateLimitInterceptorTest {
         };
     }
 
-    private AuthRateLimitProperties properties(int loginCount, long loginSeconds, int registerCount, long registerSeconds) {
+    private AuthRateLimitProperties properties(int loginCount, long loginSeconds, int registerCount, long registerSeconds,
+            int refreshCount, long refreshSeconds) {
         return new AuthRateLimitProperties(
                 100,
                 loginCount,
                 Duration.ofSeconds(loginSeconds),
                 registerCount,
-                Duration.ofSeconds(registerSeconds));
+                Duration.ofSeconds(registerSeconds),
+                refreshCount,
+                Duration.ofSeconds(refreshSeconds));
     }
 
     private static final class MutableClock extends Clock {

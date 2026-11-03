@@ -69,6 +69,7 @@ public class AuthRateLimitInterceptor implements HandlerInterceptor {
         return switch (requestUri) {
             case "/api/v1/auth/login" -> Endpoint.LOGIN;
             case "/api/v1/auth/register" -> Endpoint.REGISTER;
+            case "/api/v1/auth/refresh" -> Endpoint.REFRESH;
             default -> null;
         };
     }

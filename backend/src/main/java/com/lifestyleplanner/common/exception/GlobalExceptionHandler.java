@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -103,6 +105,38 @@ public class GlobalExceptionHandler {
                         errorCode.getHttpStatus()
                 )
                 .body(response);
+    }
+
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                "AUTH_ACCESS_DENIED",
+                "Bạn không có quyền thực hiện thao tác này",
+                Map.of(),
+                getCorrelationId(),
+                Instant.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFoundException(
+            NoResourceFoundException ex
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                "RESOURCE_NOT_FOUND",
+                "Không tìm thấy tài nguyên",
+                Map.of(),
+                getCorrelationId(),
+                Instant.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
 

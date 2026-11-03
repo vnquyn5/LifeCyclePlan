@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: LifeCyclePlan AUTH-02 Session Contract
+  version: 1.0.0
+  description: >-
+    AUTH-02 backend contract. The development implementation issues RS256
+    access JWTs with a 15-minute lifetime and opaque rotating refresh tokens
+    with a 7-day lifetime. Production policy remains subject to review.
+servers:
+  - url: /
+    description: API origin supplied by the deployment environment
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Đăng nhập và nhận cặp token AUTH-02
+      description: >-
+        Successful login returns a non-null user and token pair. Credentials
+        and tokens must not be logged.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Đăng nhập thành công và cấp token pair.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          description: Quá nhiều yêu cầu; response có Retry-After.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/refresh:
+    post:
+      summary: Làm mới phiên đăng nhập AUTH-02
+      description: >-
+        Invalid, expired, or revoked tokens share a generic 401 response.
+        Reuse of a rotated token revokes its session family. A successful
+        refresh rotates the opaque credential and returns a new pair. The
+        previous refresh credential must not be reused.
+      operationId: refreshSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Trả về cặp token của phiên sau khi làm mới.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/auth/logout:
+    post:
+      summary: Thu hồi refresh session và đăng xuất thiết bị hiện tại
+      description: >-
+        Contract for the downstream implementation task. Revocation is
+        idempotent: unknown, expired, and already revoked credentials all
+        produce the same 204 response. The endpoint revokes refresh capability;
+        an already-issued access JWT can remain valid until its 15-minute
+        expiry. The client clears its local session even if this request fails.
+      operationId: logoutSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Đã xử lý yêu cầu thu hồi; không tiết lộ trạng thái token.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          pattern: '\S'
+    LoginResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthUser'
+        tokens:
+          $ref: '#/components/schemas/TokenResponse'
+    AuthUser:
+      type: object
+      required: [userId, email, onboardingStatus]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        onboardingStatus:
+          type: string
+          enum: [NOT_STARTED, IN_PROGRESS, COMPLETED]
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          format: password
+          minLength: 1
+          pattern: '\S'
+          writeOnly: true
+          description: Secret credential; never log or persist in plaintext.
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          format: password
+          minLength: 1
+          pattern: '\S'
+          writeOnly: true
+          description: Current opaque refresh credential; never log.
+    RefreshResponse:
+      type: object
+      required: [tokens]
+      properties:
+        tokens:
+          $ref: '#/components/schemas/TokenResponse'
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          format: password
+          minLength: 1
+          pattern: '\S'
+          description: Short-lived JWT access credential; never log.
+        refreshToken:
+          type: string
+          format: password
+          minLength: 1
+          pattern: '\S'
+          description: Revocable refresh credential; never log or persist in plaintext.
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 900
+          description: Access-token lifetime in seconds; 900 in the current development policy.
+    ApiErrorResponse:
+      type: object
+      required: [code, message, fieldErrors, timestamp]
+      properties:
+        code:
+          type: string
+          description: >-
+            AUTH_INVALID_CREDENTIALS, AUTH_INVALID_REFRESH_TOKEN,
+            AUTH_UNAUTHENTICATED, AUTH_ACCESS_DENIED, AUTH_ACCOUNT_DISABLED,
+            AUTH_ACCOUNT_DELETED, or AUTH_RATE_LIMITED as applicable.
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+        correlationId:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+  responses:
+    Unauthorized:
+      description: Generic AUTH_INVALID_REFRESH_TOKEN for invalid, expired, revoked, or reused refresh credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    Forbidden:
+      description: Authenticated but not permitted; code may be AUTH_ACCESS_DENIED, AUTH_ACCOUNT_DISABLED, or AUTH_ACCOUNT_DELETED.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    ValidationError:
+      description: Dữ liệu request không hợp lệ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    InvalidCredentials:
+      description: Email hoặc mật khẩu không hợp lệ.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    InternalError:
+      description: Lỗi hệ thống tổng quát.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    RateLimited:
+      description: Quá nhiều yêu cầu; client phải tôn trọng Retry-After.
+      headers:
+        Retry-After:
+          description: Số giây cần chờ trước khi gửi lại yêu cầu.
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'

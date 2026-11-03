@@ -1,87 +1,114 @@
-import { ApiErrorBody, ApiRequestError } from "@/types/api.types";
+import { ApiRequestError } from "@/types/api.types";
+import {
+  endLocalSession,
+  refreshSessionSingleFlight
+} from "@/features/auth/session/authSession";
+import { useAuthSessionStore } from "@/features/auth/store/authSessionStore";
+import { requestJson } from "./transport";
+import type { JsonRequestOptions } from "./transport";
 
-const REQUEST_TIMEOUT_MS = 15_000;
+export { parseRetryAfter, postJson, safeApiMessage } from "./transport";
 
-function getApiBaseUrl(): string {
-  const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-  if (!baseUrl) {
-    throw new ApiRequestError({ message: "Dịch vụ chưa được cấu hình. Vui lòng thử lại sau." });
-  }
-  return baseUrl.replace(/\/$/, "");
+export interface AuthenticatedRequestOptions extends Omit<JsonRequestOptions, "headers"> {
+  headers?: Record<string, string>;
 }
 
-export async function postJson<TResponse, TRequest>(
+export async function authenticatedJson<TResponse>(
   path: string,
-  body: TRequest
+  options: AuthenticatedRequestOptions = {}
 ): Promise<TResponse> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  if (path.split("?")[0] === "/api/v1/auth/refresh") {
+    throw new ApiRequestError({
+      message: "Yêu cầu phiên không hợp lệ.",
+      code: "AUTH_REFRESH_RECURSION"
+    });
+  }
+
+  const session = useAuthSessionStore.getState();
+  if (session.status !== "authenticated" || !session.accessToken) {
+    throw new ApiRequestError({
+      message: "Vui lòng đăng nhập để tiếp tục.",
+      status: 401,
+      code: "AUTH_UNAUTHENTICATED"
+    });
+  }
 
   try {
-    const url = `${getApiBaseUrl()}${path}`;
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-    } catch {
-      const timedOut = controller.signal.aborted;
-      throw new ApiRequestError({
-        message: timedOut
-          ? "Yêu cầu mất quá nhiều thời gian. Hãy kiểm tra kết nối và thử lại."
-          : "Không thể kết nối. Hãy kiểm tra mạng và thử lại.",
-        code: timedOut ? "REQUEST_TIMEOUT" : "NETWORK_ERROR"
-      });
-    }
+    return await requestWithAccessToken<TResponse>(path, options, session.accessToken);
+  } catch (error) {
+    if (!isUnauthorized(error)) throw error;
+  }
 
-    const responseBody: unknown = await response.json().catch(() => undefined);
-    if (!response.ok) {
-      const errorBody = (responseBody ?? {}) as ApiErrorBody;
-      const retryAfter = response.headers.get("Retry-After");
-      throw new ApiRequestError({
-        message: safeApiMessage(errorBody, response.status),
-        status: response.status,
-        code: errorBody.code,
-        fieldErrors: errorBody.fieldErrors,
-        correlationId: errorBody.correlationId,
-        retryAfterSeconds: parseRetryAfter(retryAfter)
-      });
-    }
+  let newAccessToken: string;
+  try {
+    newAccessToken = await waitForRefreshOrCancel(refreshSessionSingleFlight(), options.signal);
+  } catch (error) {
+    throw error;
+  }
 
-    return responseBody as TResponse;
-  } finally {
-    clearTimeout(timeout);
+  if (!isSafeToReplay(options.method ?? "GET", options.headers)) {
+    throw new ApiRequestError({
+      message: "Phiên đã được gia hạn. Vui lòng gửi lại thao tác.",
+      status: 401,
+      code: "AUTH_RETRY_REQUIRED"
+    });
+  }
+
+  try {
+    return await requestWithAccessToken<TResponse>(path, options, newAccessToken);
+  } catch (error) {
+    if (isUnauthorized(error)) {
+      await endLocalSession();
+    }
+    throw error;
   }
 }
 
-export function parseRetryAfter(headerValue: string | null): number | undefined {
-  if (!headerValue) return undefined;
-  const seconds = Number(headerValue);
-  if (Number.isFinite(seconds) && seconds >= 0) return seconds;
-  const retryAt = Date.parse(headerValue);
-  if (Number.isNaN(retryAt)) return undefined;
-  return Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+async function requestWithAccessToken<TResponse>(
+  path: string,
+  options: AuthenticatedRequestOptions,
+  accessToken: string
+): Promise<TResponse> {
+  return requestJson<TResponse>(path, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${accessToken}` }
+  });
 }
 
-export function safeApiMessage(body: ApiErrorBody, status: number): string {
-  const knownMessages: Record<string, string> = {
-    AUTH_INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa chính xác.",
-    AUTH_PASSWORD_CONFIRM_MISMATCH: "Mật khẩu xác nhận không khớp.",
-    AUTH_ACCOUNT_DISABLED: "Tài khoản hiện chưa thể đăng nhập.",
-    AUTH_RATE_LIMITED: "Bạn thao tác quá nhanh. Vui lòng chờ rồi thử lại.",
-    EMAIL_ALREADY_EXISTS: "Email này đã được đăng ký. Hãy đăng nhập hoặc dùng email khác.",
-    VALIDATION_ERROR: "Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại."
-  };
-  if (body.code && knownMessages[body.code]) return knownMessages[body.code];
-  if (status === 429) return "Bạn thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại.";
-  if (status === 401) return "Email hoặc mật khẩu chưa chính xác.";
-  if (status === 403) return "Tài khoản hiện chưa thể thực hiện thao tác này.";
-  if (status === 409) return "Thông tin này đã được sử dụng. Hãy đăng nhập hoặc dùng email khác.";
-  if (status >= 500) return "Dịch vụ đang gặp sự cố. Vui lòng thử lại sau.";
-  if (body.fieldErrors && Object.keys(body.fieldErrors).length > 0)
-    return "Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại.";
-  return "Không thể hoàn tất yêu cầu. Vui lòng thử lại.";
+function isUnauthorized(error: unknown): error is ApiRequestError {
+  return error instanceof ApiRequestError && error.status === 401;
+}
+
+function isSafeToReplay(method: string, headers: Record<string, string> = {}): boolean {
+  if (["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) return true;
+  return Object.keys(headers).some(
+    (key) => key.toLowerCase() === "idempotency-key" && headers[key].trim().length > 0
+  );
+}
+
+function waitForRefreshOrCancel(
+  refreshPromise: Promise<string>,
+  signal?: AbortSignal
+): Promise<string> {
+  if (!signal) return refreshPromise;
+  if (signal.aborted) return Promise.reject(cancelledRequest());
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(cancelledRequest());
+    signal.addEventListener("abort", onAbort, { once: true });
+    refreshPromise.then(
+      (token) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(token);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
+function cancelledRequest(): ApiRequestError {
+  return new ApiRequestError({ message: "Yêu cầu đã được hủy.", code: "REQUEST_CANCELLED" });
 }

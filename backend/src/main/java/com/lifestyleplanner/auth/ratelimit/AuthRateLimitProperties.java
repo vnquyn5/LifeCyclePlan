@@ -10,7 +10,9 @@ public record AuthRateLimitProperties(
         int loginMaxRequests,
         Duration loginWindow,
         int registerMaxRequests,
-        Duration registerWindow) {
+        Duration registerWindow,
+        int refreshMaxRequests,
+        Duration refreshWindow) {
 
     public AuthRateLimitProperties {
         if (maxTrackedBuckets < 1) {
@@ -18,12 +20,14 @@ public record AuthRateLimitProperties(
         }
         validatePolicy(loginMaxRequests, loginWindow, "login");
         validatePolicy(registerMaxRequests, registerWindow, "register");
+        validatePolicy(refreshMaxRequests, refreshWindow, "refresh");
     }
 
     public Policy policyFor(Endpoint endpoint) {
         return switch (endpoint) {
             case LOGIN -> new Policy(loginMaxRequests, loginWindow);
             case REGISTER -> new Policy(registerMaxRequests, registerWindow);
+            case REFRESH -> new Policy(refreshMaxRequests, refreshWindow);
         };
     }
 
@@ -35,7 +39,8 @@ public record AuthRateLimitProperties(
 
     public enum Endpoint {
         LOGIN,
-        REGISTER
+        REGISTER,
+        REFRESH
     }
 
     public record Policy(int maxRequests, Duration window) {

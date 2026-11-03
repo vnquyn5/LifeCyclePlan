@@ -49,6 +49,7 @@ export default function LoginScreen() {
         onSuccess: () => {
           setPassword("");
           setSuccessMessage("Đăng nhập thành công. Phiên đã được lưu an toàn.");
+          router.replace("/");
         },
         onError: (error) => {
           const normalized = normalizeApiError(error);

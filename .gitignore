@@ -38,3 +38,4 @@ uploads/
 data/
 # Local Backend secrets
 /backend/application-local-secrets.properties
+/backend/.local-secrets/

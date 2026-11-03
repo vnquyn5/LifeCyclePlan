@@ -17,6 +17,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.lifestyleplanner.user.repository.UserRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -27,6 +29,7 @@ import com.lifestyleplanner.auth.dto.request.RegisterRequest;
 import com.lifestyleplanner.auth.dto.response.AuthUserResponse;
 import com.lifestyleplanner.auth.dto.response.LoginResponse;
 import com.lifestyleplanner.auth.dto.response.RegisterResponse;
+import com.lifestyleplanner.auth.session.application.AuthSessionService;
 import com.lifestyleplanner.common.correlation.CorrelationIdConstants;
 import com.lifestyleplanner.common.correlation.CorrelationIdFilter;
 import com.lifestyleplanner.common.exception.GlobalExceptionHandler;
@@ -52,7 +55,9 @@ import com.lifestyleplanner.user.domain.enums.OnboardingStatus;
         "app.security.auth-rate-limit.login-max-requests=2",
         "app.security.auth-rate-limit.login-window=60s",
         "app.security.auth-rate-limit.register-max-requests=1",
-        "app.security.auth-rate-limit.register-window=600s"
+        "app.security.auth-rate-limit.register-window=600s",
+        "app.security.auth-rate-limit.refresh-max-requests=30",
+        "app.security.auth-rate-limit.refresh-window=60s"
 })
 class AuthRateLimitSpringIntegrationTest {
     private static final String CORRELATION_ID = "auth-spring-integration-1";
@@ -62,6 +67,15 @@ class AuthRateLimitSpringIntegrationTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private AuthSessionService authSessionService;
+
+    @MockBean
+    private JwtDecoder jwtDecoder;
+
+    @MockBean
+    private UserRepository userRepository;
 
     @Test
     void mvcConfigurationAppliesLoginLimitAndReturnsTheApi429Contract() throws Exception {

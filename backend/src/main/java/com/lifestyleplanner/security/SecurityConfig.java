@@ -10,6 +10,16 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import com.lifestyleplanner.user.domain.entity.User;
+import com.lifestyleplanner.user.repository.UserRepository;
+import java.util.UUID;
 
 
 /**
@@ -40,7 +50,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
+            HttpSecurity http,
+            UserRepository users
     ) throws Exception {
 
         http
@@ -70,7 +81,8 @@ public class SecurityConfig {
                                         // Register/Login public.
                                         .requestMatchers(
                                                 "/api/v1/auth/register",
-                                                "/api/v1/auth/login"
+                                                "/api/v1/auth/login",
+                                                "/api/v1/auth/refresh"
                                         )
                                         .permitAll()
 
@@ -100,6 +112,22 @@ public class SecurityConfig {
                                                 accessDeniedHandler
                                         )
                 );
+
+        Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter = jwt -> {
+            try {
+                UUID userId = UUID.fromString(jwt.getSubject());
+                User user = users.findById(userId).filter(User::canLogin)
+                        .orElseThrow(() -> new OAuth2AuthenticationException(new OAuth2Error("invalid_token")));
+                return new UsernamePasswordAuthenticationToken(
+                        new AuthenticatedUser(user.getId(), user.getEmail()), null,
+                        AuthorityUtils.createAuthorityList("ROLE_USER"));
+            } catch (IllegalArgumentException exception) {
+                throw new OAuth2AuthenticationException(new OAuth2Error("invalid_token"));
+            }
+        };
+        http.oauth2ResourceServer(resourceServer -> resourceServer
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                .authenticationEntryPoint(authenticationEntryPoint));
 
         return http.build();
     }

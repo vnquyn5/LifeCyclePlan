@@ -7,6 +7,7 @@ public enum AuthErrorCode {
     EMAIL_ALREADY_EXISTS("Email already exists", HttpStatus.CONFLICT, "Email đã tồn tại"),
     PASSWORD_CONFIRM_MISMATCH("AUTH_PASSWORD_CONFIRM_MISMATCH", HttpStatus.BAD_REQUEST, "Mật khẩu xác nhận không khớp"),
     INVALID_CREDENTIALS("AUTH_INVALID_CREDENTIALS", HttpStatus.UNAUTHORIZED, "Thông tin đăng nhập không hợp lệ"),
+    INVALID_REFRESH_TOKEN("AUTH_INVALID_REFRESH_TOKEN", HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn"),
     RATE_LIMITED("AUTH_RATE_LIMITED", HttpStatus.TOO_MANY_REQUESTS, "Bạn thao tác quá nhanh. Vui lòng thử lại sau."),
     ACCOUNT_DISABLED("AUTH_ACCOUNT_DISABLED", HttpStatus.FORBIDDEN, "Tài khoản đã bị vô hiệu hóa"),
     UNAUTHENTICATED("AUTH_UNAUTHENTICATED", HttpStatus.UNAUTHORIZED, "Yêu cầu xác thực"),

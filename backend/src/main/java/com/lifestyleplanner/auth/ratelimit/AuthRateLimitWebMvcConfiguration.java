@@ -15,6 +15,6 @@ public class AuthRateLimitWebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authRateLimitInterceptor)
-                .addPathPatterns("/api/v1/auth/login", "/api/v1/auth/register");
+                .addPathPatterns("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh");
     }
 }

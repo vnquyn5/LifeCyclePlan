@@ -26,11 +26,23 @@ export interface AuthUser {
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
-  tokenType: string;
+  tokenType: "Bearer";
   expiresIn: number;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+export interface RefreshResponse {
+  tokens: TokenResponse;
 }
 
 export interface LoginResponse {
   user: AuthUser;
-  tokens: TokenResponse | null;
+  tokens: TokenResponse;
 }

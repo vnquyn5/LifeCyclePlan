@@ -105,7 +105,9 @@ class AuthRateLimiterTest {
                 loginMaxRequests,
                 Duration.ofSeconds(loginSeconds),
                 registerMaxRequests,
-                Duration.ofSeconds(registerSeconds));
+                Duration.ofSeconds(registerSeconds),
+                30,
+                Duration.ofSeconds(60));
     }
 
     private static final class MutableClock extends Clock {

@@ -23,7 +23,7 @@ server:
 
 logging:
   level:
-    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: INFO
+    org.springframework.web.servlet.mvc.method.annotation: INFO
 
 app:
   security:
@@ -33,3 +33,12 @@ app:
       login-window: 60s
       register-max-requests: 3
       register-window: 10m
+      refresh-max-requests: 30
+      refresh-window: 60s
+
+    jwt:
+      issuer: ${JWT_ISSUER:lifecycleplan-backend}
+      access-token-ttl: 15m
+      refresh-token-ttl: 7d
+      private-key-path: ${JWT_PRIVATE_KEY_PATH:./.local-secrets/jwt-private.pem}
+      public-key-path: ${JWT_PUBLIC_KEY_PATH:./.local-secrets/jwt-public.pem}

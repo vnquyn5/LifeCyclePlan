@@ -14,6 +14,7 @@ import com.lifestyleplanner.auth.dto.response.AuthUserResponse;
 import com.lifestyleplanner.auth.exception.AuthErrorCode;
 import com.lifestyleplanner.auth.exception.AuthException;
 import com.lifestyleplanner.user.domain.entity.User;
+import com.lifestyleplanner.auth.session.application.AuthSessionService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,11 +25,14 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthDomainService authDomainService;
+    private final AuthSessionService authSessionService;
 
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthDomainService authDomainService) {
+    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            AuthDomainService authDomainService, AuthSessionService authSessionService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authDomainService = authDomainService;
+        this.authSessionService = authSessionService;
     }
 
     @Override 
@@ -69,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
             user.updateLastLogin();
             
             AuthUserResponse userResponse = new AuthUserResponse(user.getId(), user.getEmail(), user.getOnboardingStatus());
-            return new LoginResponse(userResponse, null);
+            return new LoginResponse(userResponse, authSessionService.issue(user));
         }
 }
 

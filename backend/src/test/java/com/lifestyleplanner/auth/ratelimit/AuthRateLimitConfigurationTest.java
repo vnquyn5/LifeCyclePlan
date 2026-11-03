@@ -23,7 +23,9 @@ class AuthRateLimitConfigurationTest {
                     "app.security.auth-rate-limit.login-max-requests=5",
                     "app.security.auth-rate-limit.login-window=60s",
                     "app.security.auth-rate-limit.register-max-requests=3",
-                    "app.security.auth-rate-limit.register-window=10m");
+                    "app.security.auth-rate-limit.register-window=10m",
+                    "app.security.auth-rate-limit.refresh-max-requests=30",
+                    "app.security.auth-rate-limit.refresh-window=60s");
 
     @Test
     void bindsPoliciesAndWiresTheMvcInterceptor() {
@@ -34,6 +36,7 @@ class AuthRateLimitConfigurationTest {
             assertEquals(60, properties.loginWindow().toSeconds());
             assertEquals(3, properties.registerMaxRequests());
             assertEquals(600, properties.registerWindow().toSeconds());
+            assertEquals(30, properties.refreshMaxRequests());
             assertTrue(context.containsBean("authRateLimitInterceptor"));
             assertTrue(context.containsBean("authRateLimiter"));
         });
